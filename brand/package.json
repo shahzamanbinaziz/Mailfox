@@ -1,0 +1,16 @@
+{
+  "name": "@mailfox/brand",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mailfox brand assets and the scripts that generate them",
+  "scripts": {
+    "assets": "node scripts/build-wordmark.mjs && node scripts/build-icons.mjs && pnpm --filter @mailfox/ui brand:export"
+  },
+  "devDependencies": {
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "opentype.js": "^1.3.4",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.5"
+  }
+}

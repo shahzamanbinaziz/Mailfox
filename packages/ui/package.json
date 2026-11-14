@@ -1,0 +1,37 @@
+{
+  "name": "@mailfox/ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mailfox shared React components and brand tokens",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens": "./src/tokens.ts",
+    "./tokens.css": "./src/styles/tokens.css"
+  },
+  "scripts": {
+    "tokens:build": "tsx scripts/build-tokens.ts",
+    "brand:export": "tsx scripts/export-brand.tsx",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "framer-motion": "^12.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.39.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3",
+    "vitest": "^3.2.0"
+  }
+}

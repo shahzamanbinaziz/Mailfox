@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs><clipPath id="fv-body"><rect x="8.5" y="20.5" width="47" height="33" rx="5.8"/></clipPath></defs>
+<g fill="#FF6A1A">
+  <path d="M9 27 L15 5.2 Q15.9 2.9 17.6 4.6 L30 20 Z"/>
+  <path d="M55 27 L49 5.2 Q48.1 2.9 46.4 4.6 L34 20 Z"/>
+  <rect x="6" y="18" width="52" height="38" rx="8"/>
+</g>
+<g fill="#0F1729">
+  <path d="M14.6 20.5 L16.9 10.6 L24.2 19.6 Z"/>
+  <path d="M49.4 20.5 L47.1 10.6 L39.8 19.6 Z"/>
+</g>
+<path d="M6 22 L32 46 L58 22 L58 56 L6 56 Z" fill="#FFF3E8" clip-path="url(#fv-body)"/>
+<g fill="#0F1729">
+  <ellipse cx="22" cy="30" rx="2.6" ry="3.1"/>
+  <ellipse cx="42" cy="30" rx="2.6" ry="3.1"/>
+  <path d="M28.4 43.2 L35.6 43.2 Q36.9 43.2 36.1 44.3 L33 48.3 Q32 49.4 31 48.3 L27.9 44.3 Q27.1 43.2 28.4 43.2 Z"/>
+</g>
+</svg>

@@ -1,0 +1,13 @@
+pnpm-lock.yaml
+**/dist
+**/.next
+**/generated
+brand/icons
+brand/*.svg
+CLAUDE.md
+packages/ui/src/brand/wordmark.ts
+packages/ui/src/styles/tokens.css
+packages/db/prisma/migrations
+brand/empty-states
+brand/animations
+pnpm-lock.yaml
