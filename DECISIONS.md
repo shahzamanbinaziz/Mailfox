@@ -11,10 +11,14 @@ Heavy and long-running work already sits outside the request path (`apps/worker`
 high-traffic endpoints (open pixel, clicks, unsubscribe) live in `apps/tracker`. The public REST API
 (Phase 8) will be versioned route handlers under `/api/v1`. Can be split out later without touching the DB layer.
 
-### D-002 · Auth.js v5 over Lucia
+### D-002 · Auth: in-house database sessions (Lucia pattern), not Auth.js — _revised in Phase 1_
 
-Lucia was deprecated by its author (2025). Auth.js v5 supports credentials + custom TOTP 2FA, and we keep
-our own `Session` table for "sign out other devices". Passwords: bcryptjs (cost 12) — pure JS, no native build in Docker.
+Phase 0 planned Auth.js v5. On implementation (Nov 2026) Auth.js v5 is still a beta on npm, and its credentials
+provider cannot use database sessions — which "sign out other devices" and server-side revocation need.
+Lucia v3 is deprecated; its author now publishes the session pattern itself as the recommended approach. We follow it:
+random 256-bit token in an httpOnly cookie, only its SHA-256 stored in `Session`, 30-day sliding expiry,
+revocation = deleting rows. Passwords: bcryptjs (cost 12) — pure JS, no native build in Docker.
+~150 lines we fully control and test (`apps/web/src/lib/auth`).
 
 ### D-003 · TypeScript 6.0, not 7
 
@@ -86,3 +90,54 @@ never create a second email for the same contact + campaign.
 
 `Contact.lastOpenedAt/lastClickedAt` power engagement segments without scanning `Event`; `Campaign.*Count`
 columns make dashboards O(1). `Event` remains the append-only source of truth.
+
+## Phase 1
+
+### D-017 · TOTP implemented in `@mailfox/core` (RFC 6238), verified against the RFC test vectors
+
+TOTP is ~60 lines of HMAC; the popular library (otplib) changed its API in v13 and pulls extra deps. Our
+implementation is checked against RFC 6238 Appendix B and RFC 4226 vectors in unit tests. Codes are accepted
+±1 step for clock drift; the accepted step is stored (`User.totpLastStep`) so a code can never be replayed.
+8 one-time recovery codes are stored as SHA-256 hashes. QR codes via the `qrcode` package.
+
+### D-018 · Two-step login uses a signed, 5-minute "pending 2FA" ticket — not a half-session
+
+After a correct password on a 2FA account we set an HMAC-signed cookie with `{uid, exp}`. Only the 2FA step accepts
+it; no session exists until the second factor passes.
+
+### D-019 · Login rate limits in Redis, with an in-memory fallback
+
+30 attempts / 15 min per IP and 8 per email; 6 code attempts / 10 min per user at the 2FA step. If Redis is down,
+an in-process window keeps limits on rather than failing open or blocking sign-in.
+
+### D-020 · Server Actions allow `*.app.github.dev`
+
+Codespaces forwards port 3000 via `*.app.github.dev` while sending `x-forwarded-host: localhost:3000`, which Next.js
+rejects as a cross-origin Server Action. `next.config.ts` allows that suffix plus anything in
+`SERVER_ACTIONS_ALLOWED_ORIGINS` (read at build time) for production domains.
+
+### D-021 · Web server code never reads env at import time
+
+`next build` imports route modules with no secrets (Docker build stage). `lib/server.ts` exposes `getEnv()`,
+`getEncryptionKey()` and a lazy Prisma proxy so the build stays secret-free.
+
+### D-022 · shadcn/ui-style primitives are hand-written in `@mailfox/ui`
+
+The shadcn CLI fetches components from its registry at generation time. We keep the same API shape (Radix +
+`cva` + `tailwind-merge`) in `packages/ui/src/components`, owned by the repo and reviewed like any other code.
+
+### D-023 · Chart colours are validated, not eyeballed
+
+Overview chart: sends = fox-600, unique opens = info-700 (light) / info-600 (dark). Checked with the dataviz
+palette validator (CVD ΔE ≥ 25, ≥ 3:1 vs surface, both modes). One y-axis (both series are emails); a table view
+toggle is provided for accessibility.
+
+### D-024 · Brand guide stays a public page
+
+`/brand` lives outside the authenticated shell so designers and partners can use it without an account; the sidebar links to it.
+
+### D-025 · Seed is now versioned by idempotent blocks
+
+The base seed still runs once. Phase 1 adds `seedTeam` (3 demo members) and `seedWelcomeSeries` (an active welcome
+automation with ~30 days of sends) that each check for their own data, so existing databases (e.g. your Codespace)
+pick them up on the next `docker compose up`.

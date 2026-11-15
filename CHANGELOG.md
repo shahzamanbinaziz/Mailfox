@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.2.0] — Phase 1 · Auth, roles & dashboard shell — 2026-11-15
+
+### Added
+
+- **Sign-in** with email + password: split-screen branded login, show/hide password, clear zod-validated errors,
+  rate limiting (per IP and per email), timing-safe checks.
+- **Two-factor authentication (TOTP)**: QR + manual key setup, ±30s drift, replay protection, 8 one-time recovery
+  codes, regenerate/disable with password. Works with Google Authenticator, 1Password, Authy.
+- **Database sessions**: hashed tokens, 30-day sliding expiry, active-sessions list with per-device sign-out and
+  “sign out all other sessions”; password change signs out other devices.
+- **Roles** (Owner, Admin, Editor, Viewer) enforced in server actions; Team settings to change roles and remove members
+  (owner-protection rules: only owners grant/remove owners, a workspace keeps ≥ 1 owner, nobody edits themselves).
+- **Dashboard shell**: collapsible sidebar (remembered), mobile drawer, workspace switcher, ⌘K / Ctrl+K command
+  palette (navigation, actions, live contact & campaign search), notifications with unread count and “mark all read”,
+  account menu with light / dark / system theme, skip-to-content link, toasts.
+- **Overview**: sent today / 7d / 30d (with trend vs prior 30d), delivery, open (human only — machine opens excluded),
+  click, bounce and complaint rates with health thresholds, unsubscribes; 30-day send-volume chart with crosshair
+  tooltip and table view; live queue status (BullMQ depth + worker heartbeat, 5s polling); mailbox health with warmup-
+  aware daily limits; recent campaigns. All day boundaries use the workspace timezone.
+- **Section pages**: Campaigns and Contacts (search + pagination) lists, Mailboxes overview; Templates, Automations and
+  Reports show what arrives in which phase. Loading skeletons and an error boundary.
+- **Settings**: Profile, Password, Security (2FA + sessions), Team, Workspace (company name, physical address required for
+  footers, timezone, tracking domain).
+- **Audit log entries** for sign-in/out, password and 2FA changes, session revocations, role changes, workspace edits.
+- `@mailfox/core`: RFC 6238 TOTP, password policy + hashing, warmup-aware `effectiveDailyLimit`.
+- `@mailfox/ui`: shadcn-style primitives (Button, Input, Field, Select, Card, Badge, Avatar, Tooltip, DropdownMenu,
+  Dialog, Sheet, Table, Kbd) and chart tokens.
+- Seed: 3 extra team members and a 30-day welcome series (idempotent — applied to existing databases too).
+- **E2E tests** (Playwright): redirect when signed out, wrong password, sign-in → dashboard → ⌘K, team role controls,
+  full 2FA enable → sign in with code → recovery code works once. CI now runs them against the standalone build.
+
+### Changed
+
+- `/` redirects to the dashboard (or login). Auth approach revised from Auth.js to in-house sessions — see D-002.
+
+### Verified
+
+- 32/32 Turborepo tasks green; 78 unit tests + 5 E2E tests passing locally against Postgres + Redis.
+- Production build needs no secrets; light, dark and mobile layouts checked in a real browser.
+
 ## [0.1.0] — Phase 0 · Foundation & brand — 2026-11-15
 
 ### Added

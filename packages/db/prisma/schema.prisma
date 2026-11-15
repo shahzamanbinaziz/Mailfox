@@ -164,6 +164,10 @@ model User {
   avatarUrl       String?
   totpSecretEnc   String?
   totpEnabled     Boolean   @default(false)
+  /// Last accepted TOTP time-step — a code can never be used twice.
+  totpLastStep    Int?
+  /// SHA-256 hashes of unused one-time recovery codes.
+  recoveryCodeHashes String[] @default([])
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
   createdAt       DateTime  @default(now())

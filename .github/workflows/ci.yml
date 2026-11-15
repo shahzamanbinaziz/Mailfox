@@ -23,12 +23,18 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U mailfox" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       DATABASE_URL: postgresql://mailfox:mailfox@localhost:5432/mailfox
       DATABASE_URL_TEST: postgresql://mailfox:mailfox@localhost:5432/mailfox
       # Throwaway CI-only values.
       ENCRYPTION_KEY: Y2ktb25seS1tYWlsZm94LWtleS0zMi1ieXRlcyEhISE=
       AUTH_SECRET: ci-only-auth-secret-not-used-anywhere
+      REDIS_URL: redis://localhost:6379
       TURBO_TELEMETRY_DISABLED: 1
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -48,3 +54,22 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Start web (standalone build)
+        run: |
+          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/
+          cp -r apps/web/public apps/web/.next/standalone/apps/web/
+          node apps/web/.next/standalone/apps/web/server.js > web.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:3000/api/health && break; sleep 1; done
+      - name: Install Playwright Chromium
+        run: pnpm --filter @mailfox/web exec playwright install --with-deps chromium
+      - name: E2E tests
+        run: pnpm --filter @mailfox/web e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+            web.log

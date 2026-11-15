@@ -78,3 +78,101 @@ describe("loadEnv", () => {
     expect(loadEnv(schema, { A: "a", B: "2" })).toEqual({ A: "a", B: 2 });
   });
 });
+
+import {
+  base32Decode,
+  base32Encode,
+  hotp,
+  totp,
+  totpUri,
+  verifyTotp,
+  generateTotpSecret,
+  hashPassword,
+  verifyPassword,
+  passwordSchema,
+} from "../src/index.js";
+
+describe("TOTP (RFC 6238 Appendix B vectors, SHA-1, 8 digits)", () => {
+  const secret = base32Encode(Buffer.from("12345678901234567890"));
+  it.each([
+    [59, "94287082"],
+    [1111111109, "07081804"],
+    [1111111111, "14050471"],
+    [1234567890, "89005924"],
+    [2000000000, "69279037"],
+    [20000000000, "65353130"],
+  ])("t=%i → %s", (t, code) => {
+    expect(totp(secret, t * 1000, { digits: 8 })).toBe(code);
+  });
+
+  it("RFC 4226 HOTP vector", () => {
+    expect(hotp(Buffer.from("12345678901234567890"), 1)).toBe("287082");
+  });
+
+  it("base32 round-trips", () => {
+    const b = Buffer.from("hello fox!");
+    expect(base32Decode(base32Encode(b)).toString()).toBe("hello fox!");
+  });
+
+  it("verifies within ±1 step and rejects outside", () => {
+    const s = generateTotpSecret();
+    const now = 1_800_000_000_000;
+    expect(verifyTotp(s, totp(s, now), { timeMs: now })).toBe(Math.floor(now / 30000));
+    expect(verifyTotp(s, totp(s, now - 30_000), { timeMs: now })).not.toBeNull();
+    expect(verifyTotp(s, totp(s, now - 90_000), { timeMs: now })).toBeNull();
+    expect(verifyTotp(s, "12ab56", { timeMs: now })).toBeNull();
+  });
+
+  it("builds an otpauth URI", () => {
+    expect(totpUri("ABC", "a@b.co")).toMatch(
+      /^otpauth:\/\/totp\/Mailfox%3Aa%40b\.co\?secret=ABC&issuer=Mailfox/,
+    );
+  });
+});
+
+describe("passwords", () => {
+  it("hashes and verifies", async () => {
+    const h = await hashPassword("fox-secret-123");
+    expect(await verifyPassword("fox-secret-123", h)).toBe(true);
+    expect(await verifyPassword("wrong", h)).toBe(false);
+    expect(await verifyPassword("anything", null)).toBe(false);
+  }, 20_000);
+
+  it("enforces policy", () => {
+    expect(passwordSchema.safeParse("short1").success).toBe(false);
+    expect(passwordSchema.safeParse("longbutnodigits").success).toBe(false);
+    expect(passwordSchema.safeParse("long-enough-123").success).toBe(true);
+  });
+});
+
+import { effectiveDailyLimit } from "../src/index.js";
+
+describe("effectiveDailyLimit (warmup)", () => {
+  const base = { maxPerDay: 1000, warmupEnabled: true, warmupDays: 11, warmupStartPerDay: 100 };
+  const start = new Date("2026-01-01T00:00:00Z");
+  it("ramps linearly from start to max", () => {
+    expect(effectiveDailyLimit({ ...base, warmupStartedAt: start }, new Date("2026-01-01T12:00:00Z"))).toBe(
+      100,
+    );
+    expect(effectiveDailyLimit({ ...base, warmupStartedAt: start }, new Date("2026-01-06T12:00:00Z"))).toBe(
+      550,
+    );
+    expect(effectiveDailyLimit({ ...base, warmupStartedAt: start }, new Date("2026-02-01T00:00:00Z"))).toBe(
+      1000,
+    );
+  });
+  it("uses an explicit schedule when present, capped at max", () => {
+    const schedule = [
+      { day: 1, limit: 50 },
+      { day: 3, limit: 200 },
+      { day: 5, limit: 5000 },
+    ];
+    const m = { ...base, warmupStartedAt: start, warmupSchedule: schedule };
+    expect(effectiveDailyLimit(m, new Date("2026-01-02T00:00:00Z"))).toBe(50);
+    expect(effectiveDailyLimit(m, new Date("2026-01-04T00:00:00Z"))).toBe(200);
+    expect(effectiveDailyLimit(m, new Date("2026-01-09T00:00:00Z"))).toBe(1000);
+  });
+  it("is the plain max when warmup is off", () => {
+    expect(effectiveDailyLimit({ ...base, warmupEnabled: false, warmupStartedAt: null })).toBe(1000);
+  });
+});

@@ -7,8 +7,8 @@ A Mailchimp / Brevo alternative you run on your own VPS, with your own mailboxes
 
 ---
 
-> **Status: Phase 0 complete** — monorepo, brand kit, database schema + seed, service skeletons, Docker and CI.
-> The admin dashboard arrives in Phase 1. See [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
+> **Status: Phase 1 complete (v0.2.0)** — sign-in with 2FA, roles, sessions, the dashboard shell with ⌘K, and a live
+> overview built on the seeded demo workspace. See [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
 
 ## Quick start
 
@@ -23,8 +23,12 @@ docker compose up
 | http://localhost:8025        | Mailpit — every email sent in dev lands here, never in real inboxes |
 | http://localhost:3001/health | Tracker service                                                     |
 
-The first run builds the images, applies migrations and seeds a demo workspace:
-**admin@mailfox.local / mailfox-admin-123** (login UI arrives in Phase 1), 500 contacts, 3 templates, 2 campaigns.
+The first run builds the images, applies migrations and seeds a demo workspace. Sign in with
+**admin@mailfox.local / mailfox-admin-123** (Owner). The workspace has 500 contacts, 3 templates, 2 campaigns,
+a 30-day welcome series and 3 more team members. Press **⌘K / Ctrl+K** anywhere to search or jump.
+
+> In GitHub Codespaces open the forwarded port 3000 from the **Ports** tab. Server Actions accept
+> `*.app.github.dev`; for your own domain set `SERVER_ACTIONS_ALLOWED_ORIGINS` before building (see DECISIONS D-020).
 
 Compose ships **dev-only default secrets** so it starts with zero setup. For anything real, copy `.env.example` to `.env` and fill in fresh values (see below).
 
@@ -81,7 +85,7 @@ docs/         architecture notes, deliverability + deploy guides (later phases)
 
 ## Tech stack
 
-pnpm + Turborepo · Next.js 16 · React 19 · Tailwind CSS v4 · Framer Motion · PostgreSQL 17 + Prisma 7 (pg driver adapter) · Redis + BullMQ · Fastify 5 · MJML 5 · Nodemailer · Google Gemini (`@google/genai`) · Vitest · Playwright · Mailpit · Docker Compose · Caddy · GitHub Actions + GHCR.
+pnpm + Turborepo · Next.js 16 · React 19 · Tailwind CSS v4 · Radix UI (shadcn-style) · cmdk · Recharts · Framer Motion · PostgreSQL 17 + Prisma 7 (pg driver adapter) · Redis + BullMQ · Fastify 5 · MJML 5 · Nodemailer · Google Gemini (`@google/genai`) · Vitest · Playwright · Mailpit · Docker Compose · Caddy · GitHub Actions + GHCR.
 Why each choice was made: [DECISIONS.md](DECISIONS.md).
 
 ## Roadmap

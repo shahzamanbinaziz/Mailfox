@@ -150,6 +150,9 @@ export const semantic = {
     link: colors.fox[700],
     sidebar: colors.ink[50],
     "sidebar-foreground": colors.ink[900],
+    // Chart series (validated with the dataviz palette checker: CVD ΔE ≥ 25, ≥ 3:1 vs surface)
+    "chart-1": colors.fox[600],
+    "chart-2": colors.info[700],
   },
   dark: {
     background: colors.ink[950],
@@ -178,6 +181,8 @@ export const semantic = {
     link: colors.fox[400],
     sidebar: "#0B1120",
     "sidebar-foreground": colors.ink[100],
+    "chart-1": colors.fox[600],
+    "chart-2": colors.info[600],
   },
 } as const;
 

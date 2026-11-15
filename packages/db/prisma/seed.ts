@@ -30,10 +30,18 @@ const DEMO_SLUG = "mailfox-demo";
 const DAY = 24 * 60 * 60 * 1000;
 
 async function main() {
-  if (await prisma.workspace.findUnique({ where: { slug: DEMO_SLUG } })) {
-    console.log("🦊 Seed: demo workspace already exists — skipping.");
-    return;
+  const existing = await prisma.workspace.findUnique({ where: { slug: DEMO_SLUG } });
+  if (existing) {
+    console.log("🦊 Seed: demo workspace already exists — skipping base data.");
+  } else {
+    await seedBase();
   }
+  const ws = await prisma.workspace.findUniqueOrThrow({ where: { slug: DEMO_SLUG } });
+  await seedTeam(ws.id);
+  await seedWelcomeSeries(ws.id);
+}
+
+async function seedBase() {
   const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@mailfox.local").toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "mailfox-admin-123";
   const address = process.env.SEED_COMPANY_ADDRESS ?? "Mailfox HQ, 1 Fox Lane, Lahore, Pakistan";
@@ -573,6 +581,124 @@ async function main() {
     `   campaigns   2 (1 sent: ${counters.sent} sends, ${counters.uOpens} opens, ${counters.uClicks} clicks)`,
   );
   console.log(`   events      ${events.length}`);
+}
+
+/** v0.2: extra team members so roles have something to show. Idempotent. */
+async function seedTeam(ws: string) {
+  const people: [string, string, "ADMIN" | "EDITOR" | "VIEWER"][] = [
+    ["sara@mailfox.local", "Sara Khan", "ADMIN"],
+    ["bilal@mailfox.local", "Bilal Ahmed", "EDITOR"],
+    ["hina@mailfox.local", "Hina Raza", "VIEWER"],
+  ];
+  for (const [email, name, role] of people) {
+    if (await prisma.user.findUnique({ where: { email } })) continue;
+    // No password: these demo members can't sign in until an admin resets them (invites arrive in Phase 8).
+    const user = await prisma.user.create({
+      data: { email, name, lastLoginAt: faker.date.recent({ days: 10 }) },
+    });
+    await prisma.membership.create({ data: { userId: user.id, workspaceId: ws, role } });
+  }
+}
+
+/**
+ * v0.2: an active "Welcome series" automation that has emailed every new contact from the last
+ * 30 days, so the overview chart shows daily volume rather than one spike. Idempotent.
+ */
+async function seedWelcomeSeries(ws: string) {
+  if (await prisma.automation.findFirst({ where: { workspaceId: ws, name: "Welcome series" } })) return;
+  const template = await prisma.template.findFirst({ where: { workspaceId: ws, name: "Welcome" } });
+  const mailbox = await prisma.mailbox.findFirst({
+    where: { workspaceId: ws, fromEmail: "hello@mailfox.local" },
+  });
+  const list = await prisma.list.findFirst({ where: { workspaceId: ws, name: "Newsletter" } });
+  const automation = await prisma.automation.create({
+    data: {
+      workspaceId: ws,
+      name: "Welcome series",
+      status: "ACTIVE",
+      trigger: "LIST_JOINED",
+      triggerConfig: { listId: list?.id ?? null },
+      mailboxId: mailbox?.id ?? null,
+      steps: {
+        create: [
+          {
+            order: 1,
+            type: "EMAIL",
+            templateId: template?.id ?? null,
+            config: { subject: template?.subject ?? "Welcome" },
+          },
+        ],
+      },
+    },
+    include: { steps: true },
+  });
+  const step = automation.steps[0];
+  if (!step) return;
+
+  const since = new Date(Date.now() - 30 * DAY);
+  const recent = await prisma.contact.findMany({
+    where: {
+      workspaceId: ws,
+      createdAt: { gte: since },
+      status: { in: [ContactStatus.SUBSCRIBED, ContactStatus.UNSUBSCRIBED] },
+    },
+  });
+  // Spread joins realistically: a few per day, with weekday bumps.
+  const sends: Prisma.SendCreateManyInput[] = [];
+  const events: Prisma.EventCreateManyInput[] = [];
+  for (let d = 0; d < 30; d++) {
+    const day = new Date(Date.now() - d * DAY);
+    const weekday = day.getUTCDay() % 6 !== 0;
+    const n = faker.number.int({ min: weekday ? 6 : 2, max: weekday ? 18 : 7 });
+    for (let i = 0; i < n; i++) {
+      const c = recent.length ? faker.helpers.arrayElement(recent) : null;
+      if (!c) break;
+      const id = `seedw_${d}_${i}_${c.id}`;
+      const at = new Date(day.getTime() - faker.number.int({ min: 0, max: 20 * 3600 }) * 1000);
+      if (at > new Date()) continue;
+      sends.push({
+        id,
+        workspaceId: ws,
+        automationStepId: null,
+        contactId: c.id,
+        mailboxId: mailbox?.id ?? null,
+        email: c.email,
+        status: SendStatus.SENT,
+        messageId: `<${id}@mailfox.local>`,
+        verpToken: randomToken(12),
+        attempts: 1,
+        queuedAt: at,
+        sentAt: at,
+      });
+      events.push({ workspaceId: ws, type: EventType.SENT, sendId: id, contactId: c.id, createdAt: at });
+      events.push({ workspaceId: ws, type: EventType.DELIVERED, sendId: id, contactId: c.id, createdAt: at });
+      if (faker.number.float() < 0.62) {
+        events.push({
+          workspaceId: ws,
+          type: EventType.OPEN,
+          sendId: id,
+          contactId: c.id,
+          client: "Gmail",
+          device: "mobile",
+          createdAt: new Date(at.getTime() + faker.number.int({ min: 1, max: 240 }) * 60_000),
+        });
+        if (faker.number.float() < 0.35) {
+          events.push({
+            workspaceId: ws,
+            type: EventType.CLICK,
+            sendId: id,
+            contactId: c.id,
+            url: "https://example.com/start",
+            createdAt: new Date(at.getTime() + 300 * 60_000),
+          });
+        }
+      }
+    }
+  }
+  await prisma.send.createMany({ data: sends });
+  for (let i = 0; i < events.length; i += 1000)
+    await prisma.event.createMany({ data: events.slice(i, i + 1000) });
+  console.log(`🦊 Seed: welcome series added (${sends.length} sends over 30 days).`);
 }
 
 main()

@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens": "./src/tokens.ts",
-    "./tokens.css": "./src/styles/tokens.css"
+    "./tokens.css": "./src/styles/tokens.css",
+    "./components": "./src/components/index.ts"
   },
   "scripts": {
     "tokens:build": "tsx scripts/build-tokens.ts",
@@ -21,7 +22,14 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
-    "framer-motion": "^12.23.0"
+    "framer-motion": "^12.23.0",
+    "radix-ui": "^1.8.1",
+    "cmdk": "^1.1.1",
+    "sonner": "^2.0.8",
+    "lucide-react": "^1.73.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

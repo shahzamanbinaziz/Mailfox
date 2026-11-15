@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "../../../../packages/ui/src/styles/tokens.css";
 
 /* Scan shared UI components for class names */
